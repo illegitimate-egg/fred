@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PROJECT>
+    <Image File="//wsl.localhost/Fedora/home/fedora/fred/textures/texture.bmp">
+        <Compression Setting="texture_BMP_DXT3_2" Enabled="False">
+            <Source>//wsl.localhost/Fedora/home/fedora/fred/textures/texture.bmp</Source>
+            <Destination>//wsl.localhost/Fedora/home/fedora/fred/textures/results/texture_BMP_DXT3_2.DDS</Destination>
+            <fd>DXT3</fd>
+            <Quality>0.2</Quality>
+            <WeightR>0.3086</WeightR>
+            <WeightG>0.6094</WeightG>
+            <WeightB>0.082</WeightB>
+            <AlphaThreshold>0</AlphaThreshold>
+            <RefineSteps>0</RefineSteps>
+            <BlockRate>8.00</BlockRate>
+        </Compression>
+        <Compression Setting="texture_BMP_DXT5_3" Enabled="False">
+            <Source>//wsl.localhost/Fedora/home/fedora/fred/textures/texture.bmp</Source>
+            <Destination>//wsl.localhost/Fedora/home/fedora/fred/textures/results/texture_BMP_DXT5_3.DDS</Destination>
+            <fd>DXT5</fd>
+            <Quality>0.05</Quality>
+            <WeightR>0.3086</WeightR>
+            <WeightG>0.6094</WeightG>
+            <WeightB>0.082</WeightB>
+            <AlphaThreshold>0</AlphaThreshold>
+            <RefineSteps>0</RefineSteps>
+            <BlockRate>8.00</BlockRate>
+        </Compression>
+        <Compression Setting="texture_BMP_DXT1_1" Enabled="False">
+            <Source>//wsl.localhost/Fedora/home/fedora/fred/textures/texture.bmp</Source>
+            <Destination>//wsl.localhost/Fedora/home/fedora/fred/textures/results/texture_BMP_DXT1_1.DDS</Destination>
+            <fd>DXT1</fd>
+            <Quality>0.05</Quality>
+            <WeightR>0.3086</WeightR>
+            <WeightG>0.6094</WeightG>
+            <WeightB>0.082</WeightB>
+            <AlphaThreshold>0</AlphaThreshold>
+            <RefineSteps>0</RefineSteps>
+            <BlockRate>8.00</BlockRate>
+        </Compression>
+    </Image>
+</PROJECT>

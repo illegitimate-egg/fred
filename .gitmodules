@@ -22,3 +22,6 @@
 [submodule "include/CLog"]
 	path = include/CLog
 	url = https://github.com/williamistGitHub/CLog.git
+[submodule "include/glad"]
+	path = include/glad
+	url = https://github.com/Dav1dde/glad.git

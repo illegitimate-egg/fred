@@ -3,15 +3,15 @@
 #include <string.h>
 #include <vector>
 
-#include <GL/glew.h>
+#include <glad/gl.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/trigonometric.hpp>
 
-#include <clog/clog.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
+#include <clog/clog.h>
 #include <imgui.h>
 
 #include <SOIL2.h>
@@ -31,8 +31,9 @@ static void glfwErrorCallback(int e, const char *description) {
 }
 
 static bool loadModel(const char *path, std::vector<unsigned short> &indices,
-               std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs,
-               std::vector<glm::vec3> &normals) {
+                      std::vector<glm::vec3> &vertices,
+                      std::vector<glm::vec2> &uvs,
+                      std::vector<glm::vec3> &normals) {
   Assimp::Importer importer;
 
   const aiScene *scene = importer.ReadFile(
@@ -69,7 +70,6 @@ static bool loadModel(const char *path, std::vector<unsigned short> &indices,
 static int initWindow() {
   glfwSetErrorCallback(glfwErrorCallback);
 
-  glewExperimental = true;
   if (!glfwInit()) {
     clog_log(CLOG_LEVEL_ERROR, "GLFW went shitty time (failed to init)");
     return 1;
@@ -90,10 +90,14 @@ static int initWindow() {
   }
 
   glfwMakeContextCurrent(window);
-  glfwSwapInterval(1);
-  int code;
-  if ((code = glewInit()) != GLEW_OK) {
-    clog_log(CLOG_LEVEL_ERROR, "Failed to init GLEW: %s", glewGetErrorString(code));
+  glfwSwapInterval(1); // V-Sync
+
+  int version;
+  if ((version = gladLoadGL(glfwGetProcAddress))) {
+    clog_log(CLOG_LEVEL_DEBUG, "GL version: %d.%d", GLAD_VERSION_MAJOR(version),
+             GLAD_VERSION_MINOR(version));
+  } else {
+    clog_log(CLOG_LEVEL_ERROR, "Failed to init GL!");
     return 1;
   }
 
@@ -291,7 +295,7 @@ static int initWindow() {
     // Disabled because unchanged
     // glm_perspective(glm_rad(FOV), 4.0f/ 3.0f, 0.1f, 100.0f, projection);
     glm::mat4 view = glm::lookAt(position, position + direction, up);
-    mvp = projection * view * model;
+    // mvp = projection * view * model;
 
     // Send mega sigma MVP to the vertex shader (transformations for the win)
     glUniformMatrix4fv(matrixID, 1, GL_FALSE, &mvp[0][0]);
@@ -315,7 +319,8 @@ static int initWindow() {
     // Index buffer
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementBuffer);
 
-    glDrawElements(GL_TRIANGLES, (GLsizei)indices.size(), GL_UNSIGNED_SHORT, (void *)0);
+    glDrawElements(GL_TRIANGLES, (GLsizei)indices.size(), GL_UNSIGNED_SHORT,
+                   (void *)0);
 
     glDisableVertexAttribArray(0);
     glDisableVertexAttribArray(1);

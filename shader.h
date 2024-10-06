@@ -1,7 +1,7 @@
 #ifndef LOAD_SHADERS_H
 #define LOAD_SHADERS_H
 
-#include <GL/glew.h>
+#include <glad/gl.h>
 #include <GLFW/glfw3.h>
 
 #ifdef __cplusplus

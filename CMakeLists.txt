@@ -19,17 +19,27 @@ if(CMAKE_BIANRY_DIR MATCHES " ")
   message("Spaces in the build dir can cause errors, thou art been warned")
 endif()
 
-add_custom_command(
-  OUTPUT ${PROJECT_SOURCE_DIR}/include/glew/src/glew.c
-         ${PROJECT_SOURCE_DIR}/include/glewinfo.c
-  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/include/glew/auto
-  COMMAND ${CMAKE_MAKE_PROGRAM})
+if(LINUX)
+  add_custom_command(
+    OUTPUT ${PROJECT_SOURCE_DIR}/include/glew/src/glew.c
+           ${PROJECT_SOURCE_DIR}/include/glewinfo.c
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/include/glew/auto
+    COMMAND ${CMAKE_MAKE_PROGRAM})
+endif()
+if(WIN32)
+  add_custom_command(
+    OUTPUT ${PROJECT_SOURCE_DIR}/include (glew) /src/glew.c
+           ${PROJECT_SOURCE_DIR}/include/glewinfo.c
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/include/glew/build/vc15
+    COMMAND ${CMAKE_VS_MSBUILD_COMMAND})
+endif()
 
 add_subdirectory(include/glm)
 add_subdirectory(include/glew/build/cmake)
 add_subdirectory(include/glfw)
 add_subdirectory(include/SOIL2)
 add_subdirectory(include/assimp)
+add_subdirectory(include/CLog)
 
 include_directories(include/imgui)
 add_library(
@@ -52,4 +62,5 @@ target_link_libraries(
   glfw
   soil2
   assimp
-  imgui)
+  imgui
+  clog)

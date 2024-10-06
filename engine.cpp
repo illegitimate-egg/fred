@@ -9,6 +9,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/trigonometric.hpp>
 
+#include <clog/clog.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
 #include <imgui.h>
@@ -28,7 +29,7 @@ extern "C" {
 #define HEIGHT 768
 
 static void glfwErrorCallback(int e, const char *description) {
-  fprintf(stderr, "GLFW Error %d: %s", e, description);
+  clog_log(CLOG_LEVEL_ERROR, "GLFW Error %d: %s", e, description);
 }
 
 bool loadModel(const char *path, std::vector<unsigned short> &indices,
@@ -40,7 +41,7 @@ bool loadModel(const char *path, std::vector<unsigned short> &indices,
       path, aiProcess_Triangulate | aiProcess_JoinIdenticalVertices |
                 aiProcess_SortByPType);
   if (!scene) {
-    fprintf(stderr, "%s\n", importer.GetErrorString());
+    clog_log(CLOG_LEVEL_ERROR, "%s", importer.GetErrorString());
     return false;
   }
   const aiMesh *mesh = scene->mMeshes[0];
@@ -72,7 +73,7 @@ int initWindow() {
 
   glewExperimental = true;
   if (!glfwInit()) {
-    fprintf(stderr, "GLFW went shitty time\n");
+    clog_log(CLOG_LEVEL_ERROR, "GLFW went shitty time (failed to init)");
     return 1;
   }
 
@@ -85,7 +86,7 @@ int initWindow() {
   GLFWwindow *window;
   window = glfwCreateWindow(WIDTH, HEIGHT, "Fred", NULL, NULL);
   if (window == NULL) {
-    fprintf(stderr, "Failed to open window.\n");
+    clog_log(CLOG_LEVEL_ERROR, "Failed to open window.");
     glfwTerminate();
     return 1;
   }
@@ -94,7 +95,7 @@ int initWindow() {
   glfwSwapInterval(1);
   int code;
   if ((code = glewInit()) != GLEW_OK) {
-    fprintf(stderr, "Failed to init GLEW: %s\n", glewGetErrorString(code));
+    clog_log(CLOG_LEVEL_ERROR, "Failed to init GLEW: %s", glewGetErrorString(code));
     return 1;
   }
 
@@ -152,7 +153,7 @@ int initWindow() {
       SOIL_CREATE_NEW_ID,
       SOIL_FLAG_MIPMAPS | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT);
   if (texture == 0) {
-    printf("Texture failed to load\n");
+    clog_log(CLOG_LEVEL_WARN, "Texture failed to load");
     return 0;
   }
 

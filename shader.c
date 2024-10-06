@@ -3,7 +3,15 @@
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+#ifdef __linux__
 #include <unistd.h>
+#endif
+#ifdef _WIN32
+#include <io.h>
+#define lseek _lseek
+#endif
+
+#include <clog/clog.h>
 
 GLuint loadShaders(const char *vertex_file_path,
                    const char *fragment_file_path) {
@@ -14,7 +22,7 @@ GLuint loadShaders(const char *vertex_file_path,
   vertexShaderFD = fopen(vertex_file_path, "rb");
   if (vertexShaderFD == NULL) {
     fclose(vertexShaderFD);
-    fprintf(stderr, "Failed to open Vertex Shader");
+    clog_log(CLOG_LEVEL_ERROR, "Failed to open Vertex Shader");
     return 1;
   }
   int vertexShaderLength = lseek(fileno(vertexShaderFD), 0L, SEEK_END) + 1;
@@ -28,7 +36,7 @@ GLuint loadShaders(const char *vertex_file_path,
   fragmentShaderFD = fopen(fragment_file_path, "rb");
   if (fragmentShaderFD == NULL) {
     fclose(fragmentShaderFD);
-    fprintf(stderr, "Failed to open Fragment Shader");
+    clog_log(CLOG_LEVEL_ERROR, "Failed to open Fragment Shader");
     return 1;
   }
   int fragmentShaderLength = lseek(fileno(fragmentShaderFD), 0L, SEEK_END) + 1;
@@ -41,7 +49,7 @@ GLuint loadShaders(const char *vertex_file_path,
   GLint result = GL_FALSE;
   int infoLogLength;
 
-  printf("Compiling shader: %s\n", vertex_file_path);
+  clog_log(CLOG_LEVEL_DEBUG, "Compiling shader: %s", vertex_file_path);
   char const *vertexShaderCodeConst = vertexShaderCode;
   glShaderSource(vertexShaderID, 1, &vertexShaderCodeConst, NULL);
   glCompileShader(vertexShaderID);
@@ -52,10 +60,10 @@ GLuint loadShaders(const char *vertex_file_path,
     char *vertexShaderErrorMessage[infoLogLength + 1];
     glGetShaderInfoLog(vertexShaderID, infoLogLength, NULL,
                        *vertexShaderErrorMessage);
-    printf("%s\n", *vertexShaderErrorMessage);
+    clog_log(CLOG_LEVEL_ERROR, "%s", *vertexShaderErrorMessage);
   }
 
-  printf("Compiling shader: %s\n", fragment_file_path);
+  clog_log(CLOG_LEVEL_DEBUG, "Compiling shader: %s", fragment_file_path);
   char const *fragmentShaderCodeConst = fragmentShaderCode;
   glShaderSource(fragmentShaderID, 1, &fragmentShaderCodeConst, NULL);
   glCompileShader(fragmentShaderID);
@@ -66,10 +74,10 @@ GLuint loadShaders(const char *vertex_file_path,
     char *fragmentShaderErrorMessage[infoLogLength + 1];
     glGetShaderInfoLog(fragmentShaderID, infoLogLength, NULL,
                        *fragmentShaderErrorMessage);
-    printf("%s\n", *fragmentShaderErrorMessage);
+    clog_log(CLOG_LEVEL_ERROR, "%s", *fragmentShaderErrorMessage);
   }
 
-  printf("Linking program\n");
+  clog_log(CLOG_LEVEL_DEBUG, "Linking shader program");
   GLuint programID = glCreateProgram();
   glAttachShader(programID, vertexShaderID);
   glAttachShader(programID, fragmentShaderID);
@@ -80,7 +88,7 @@ GLuint loadShaders(const char *vertex_file_path,
   if (infoLogLength > 0) {
     char *programErrorMessage[infoLogLength + 1];
     glGetProgramInfoLog(programID, infoLogLength, NULL, *programErrorMessage);
-    printf("%s\n", *programErrorMessage);
+    clog_log(CLOG_LEVEL_ERROR, "%s", *programErrorMessage);
   }
 
   glDetachShader(programID, vertexShaderID);

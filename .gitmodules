@@ -19,3 +19,6 @@
 [submodule "include/imgui"]
 	path = include/imgui
 	url = https://github.com/ocornut/imgui
+[submodule "include/CLog"]
+	path = include/CLog
+	url = https://github.com/williamistGitHub/CLog.git

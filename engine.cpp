@@ -21,18 +21,16 @@
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 
-extern "C" {
 #include "shader.h"
-}
 
-#define WIDTH 1024
-#define HEIGHT 768
+constexpr int WIDTH = 1024;
+constexpr int HEIGHT = 768;
 
 static void glfwErrorCallback(int e, const char *description) {
   clog_log(CLOG_LEVEL_ERROR, "GLFW Error %d: %s", e, description);
 }
 
-bool loadModel(const char *path, std::vector<unsigned short> &indices,
+static bool loadModel(const char *path, std::vector<unsigned short> &indices,
                std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs,
                std::vector<glm::vec3> &normals) {
   Assimp::Importer importer;
@@ -68,7 +66,7 @@ bool loadModel(const char *path, std::vector<unsigned short> &indices,
   return true;
 }
 
-int initWindow() {
+static int initWindow() {
   glfwSetErrorCallback(glfwErrorCallback);
 
   glewExperimental = true;
@@ -317,7 +315,7 @@ int initWindow() {
     // Index buffer
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementBuffer);
 
-    glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_SHORT, (void *)0);
+    glDrawElements(GL_TRIANGLES, (GLsizei)indices.size(), GL_UNSIGNED_SHORT, (void *)0);
 
     glDisableVertexAttribArray(0);
     glDisableVertexAttribArray(1);

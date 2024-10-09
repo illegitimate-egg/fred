@@ -13,6 +13,8 @@ set(GLFW_BUILD_TESTS OFF) # Don't build GLFW Tests
 set(GLFW_INSTALL OFF) # We're not building a standalone
 # set(GLEW_BUILD_DOCS $<CONFIG:Debug>) # Build docs if debug
 set(SOIL2_BUILD_TESTS OFF) # Don't build SOIL2 Tests
+set(ASSIMP_BUILD_ASSIMP_TOOLS OFF)
+set(ASSIMP_BUILD_TESTS OFF)
 
 find_package(OpenGL REQUIRED)
 
@@ -52,6 +54,14 @@ add_library(
   include/imgui/backends/imgui_impl_glfw.cpp # Zingaloid backend import
   include/imgui/backends/imgui_impl_opengl3.cpp)
 target_link_libraries(imgui glfw)
+
+include_directories(include) # Kill me please
+include_directories(include/imGuIZMO.quat)
+add_library(
+  imGuIZMO STATIC
+  include/imGuIZMO.quat/imGuIZMO.quat/imGuIZMOquat.cpp
+)
+target_link_libraries(imGuIZMO imgui)
 
 add_executable(fred engine.cpp shader.c)
 if(UNIX)

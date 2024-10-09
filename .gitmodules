@@ -25,3 +25,6 @@
 [submodule "include/glad"]
 	path = include/glad
 	url = https://github.com/Dav1dde/glad.git
+[submodule "include/imGuIZMO.quat"]
+	path = include/imGuIZMO.quat
+	url = https://github.com/BrutPitt/imGuIZMO.quat.git

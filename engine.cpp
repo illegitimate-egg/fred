@@ -15,7 +15,7 @@
 #define IMGUI_DEFINE_MATH_OPERATORS // ImGui
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
-#include <imgui/imgui.h>
+#include <imgui.h>
 #define VGIZMO_USES_GLM
 #include <imGuIZMO.quat/imGuIZMOquat.h>
 #include <clog/clog.h>

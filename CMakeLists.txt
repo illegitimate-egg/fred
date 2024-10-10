@@ -55,13 +55,13 @@ add_library(
   include/imgui/backends/imgui_impl_opengl3.cpp)
 target_link_libraries(imgui glfw)
 
-include_directories(include) # Kill me please
+# include_directories(include) # Kill me please. this is horrendously bad but ImGuIZMO.quat hardcodes imgui to be in a folder called ImGui
 include_directories(include/imGuIZMO.quat)
 add_library(
   imGuIZMO STATIC
   include/imGuIZMO.quat/imGuIZMO.quat/imGuIZMOquat.cpp
 )
-target_link_libraries(imGuIZMO imgui)
+target_link_libraries(imGuIZMO imgui -DIMGUIZMO_IMGUI_FOLDER=${CMAKE_SOURCE_DIR}/include/imgui)
 
 add_executable(fred engine.cpp shader.c)
 if(UNIX)

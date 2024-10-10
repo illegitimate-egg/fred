@@ -1,4 +1,3 @@
-#include "imGuIZMO.quat/vgMath.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,9 +13,10 @@
 #include <glm/trigonometric.hpp>
 
 #define IMGUI_DEFINE_MATH_OPERATORS // ImGui
-#include <imgui/backends/imgui_impl_glfw.h>
-#include <imgui/backends/imgui_impl_opengl3.h>
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_opengl3.h>
 #include <imgui/imgui.h>
+#define VGIZMO_USES_GLM
 #include <imGuIZMO.quat/imGuIZMOquat.h>
 #include <clog/clog.h>
 
@@ -302,17 +302,17 @@ static int initWindow() {
   return 0;
 }
 
-void imguiMat4Table(glm::mat4 matrix, const char *name) {
-  if (ImGui::BeginTable(name, 4)) {
-    for (int i = 0; i < 4; i++) {
-      for (int j = 0; j < 4; j++) {
-        ImGui::TableNextColumn();
-        ImGui::Text("%f", matrix[i][j]);
-      }
-    }
-    ImGui::EndTable();
-  }
-}
+//void imguiMat4Table(glm::mat4 matrix, const char *name) {
+//  if (ImGui::BeginTable(name, 4)) {
+//    for (int i = 0; i < 4; i++) {
+//      for (int j = 0; j < 4; j++) {
+//        ImGui::TableNextColumn();
+//        ImGui::Text("%f", matrix[i][j]);
+//      }
+//    }
+//    ImGui::EndTable();
+//  }
+//}
 
 void render(Scene scene) {
   // Clear this mf
@@ -338,15 +338,7 @@ void render(Scene scene) {
     char assetName[] = "Asset: 00";
     sprintf(assetName, "Asset: %d", i);
     ImGui::Begin(assetName);
-
-    ImGui::SeparatorText("Position Matrix:");
-    imguiMat4Table(translationMatrix, "posmat");
-    ImGui::SeparatorText("Rotation Matrix:");
-    imguiMat4Table(rotationMatrix, "rotmat");
-    ImGui::SeparatorText("Scaling Matrix:");
-    imguiMat4Table(scalingMatrix, "scalmat");
-    ImGui::SeparatorText("Model Matrix:");
-    imguiMat4Table(modelMatrix, "modmat");
+    ImGui::gizmo3D(assetName, currentAsset->rotation);
     ImGui::End();
 
     glUniformMatrix4fv(currentAsset->matrixID, 1, GL_FALSE, &mvp[0][0]);

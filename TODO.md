@@ -1,7 +1,7 @@
-[ ] Destruct all at the end
-[x] Make ImGuIZMO~~.quat~~ work
-[ ] Finish modularization
-[ ] Make SOIL2 stop giving that smelly error message
+- [ ] Destruct all at the end
+- [x] Make ImGuIZMO~~.quat~~ work
+- [ ] Finish modularization
+- [ ] Make SOIL2 stop giving that smelly error message
     Wtf is this warning?
     CMake Warning (dev) at include/SOIL2/CMakeLists.txt:4 (option):
   Policy CMP0077 is not set: option() honors normal variables.  Run "cmake
@@ -15,7 +15,7 @@ This warning is for project developers.  Use -Wno-dev to suppress it.
 CMake Warning (dev) at include/SOIL2/CMakeLists.txt:67 (install):
   Target soil2 has PUBLIC_HEADER files but no PUBLIC_HEADER DESTINATION.
 This warning is for project developers.  Use -Wno-dev to suppress it.
-[ ] Overhaul asset debug screen
-[ ] Simple Lighting
-[ ] Lightmapped Lighting
-[x] Deuteronomy is the coolest word ever
+- [ ] Overhaul asset debug screen
+- [ ] Simple Lighting
+- [ ] Lightmapped Lighting
+- [x] Deuteronomy is the coolest word ever

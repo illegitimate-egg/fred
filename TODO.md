@@ -1,4 +1,4 @@
-- [ ] Destruct all at the end
+- [x] Destruct all at the end
 - [x] Make ImGuIZMO~~.quat~~ work
 - [ ] Finish modularization
 - [ ] Make SOIL2 stop giving that smelly error message
@@ -19,3 +19,9 @@ This warning is for project developers.  Use -Wno-dev to suppress it.
 - [ ] Simple Lighting
 - [ ] Lightmapped Lighting
 - [x] Deuteronomy is the coolest word ever
+- [ ] Get ziggy with it
+- [x] Implement Cameras
+
+- [ ] Physics
+- [ ] Sound
+- [ ] Mesh deformation/animation

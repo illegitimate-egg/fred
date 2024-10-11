@@ -191,23 +191,62 @@ public:
   }
 };
 
+class Camera {
+public:
+  glm::vec3 position;
+  glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+
+  float fov = glm::radians(60.0f);
+  float nearPlane = 0.1f;
+  float farPlane = 100.0f;
+
+  
+  Camera(glm::vec3 initPosition) {
+    position = initPosition;
+  }
+  Camera(glm::vec3 initPosition, glm::quat initRotation) {
+    position = initPosition;
+    rotation = initRotation;
+  }
+  Camera(glm::vec3 initPosition, glm::quat initRotation, float initFov) { 
+    position = initPosition;
+    rotation = initRotation;
+    fov = initFov;
+  }
+  Camera(glm::vec3 initPosition, glm::quat initRotation, float initFov, float initNearPlane, float initFarPlane) {
+    position = initPosition;
+    rotation = initRotation;
+    fov = initFov;
+    nearPlane = initNearPlane;
+    farPlane = initFarPlane;
+  }
+  void lookAt(glm::vec3 target) { // I think I lost it writing this
+    glm::mat4 lookAtMatrix = glm::lookAt(position, target, glm::vec3(0, 1, 0));
+    rotation = glm::conjugate(glm::quat(lookAtMatrix));
+  }
+};
+
 class Scene {
 public:
   std::vector<Asset*> assets;
-  void addAsset(Asset *asset) {
-    assets.push_back(asset);
+  std::vector<Camera*> cameras;
+
+  int activeCamera = 0;
+
+  void addAsset(Asset &asset) {
+    assets.push_back(&asset);
+  }
+  void addCamera(Camera &camera) {
+    cameras.push_back(&camera);
   }
 };
 
 GLFWwindow *window;
+GLuint vertexArrayID;
 
 static bool shouldExit() {
 return glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS && glfwWindowShouldClose(window) == 0;
 }
-
-glm::mat4 mvp; // TODO: REMOVE THIS PLLAAAHSE
-glm::mat4 viewMatrix;
-glm::mat4 projectionMatrix;
 
 static int initWindow() {
   glfwSetErrorCallback(glfwErrorCallback);
@@ -254,22 +293,6 @@ static int initWindow() {
   ImGui_ImplGlfw_InitForOpenGL(window, true);
   ImGui_ImplOpenGL3_Init("#version 330");
 
-
-  // I love glm
-  // Projection matrix, 45deg FOV, 4:3 Aspect Ratio, Planes: 0.1units ->
-  // 100units
-  projectionMatrix = glm::perspective(
-      glm::radians(45.0f), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f);
-
-  // Camera matrix
-  viewMatrix =
-      glm::lookAt(glm::vec3(4, 3, 3), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-
-  glm::mat4 model = glm::mat4(1.0f);
-
-  // Model view projection, the combination of the three vectors
-  mvp = projectionMatrix * viewMatrix * model;
-
   glEnable(GL_DEPTH_TEST); // Turn on the Z-buffer
   glDepthFunc(GL_LESS);    // Accept only the closest fragments
 
@@ -277,43 +300,38 @@ static int initWindow() {
 
   glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 
-  GLuint vertexArrayID;
   glGenVertexArrays(1, &vertexArrayID);
   glBindVertexArray(vertexArrayID);
-
-  // Define camera stuff
-  //glm::vec3 position = {4, 3, 3};
-  //float horizontalAngle = 3.14f;
-  //float verticalAngle = -0.1f;
-  //float initialFOV = 60.0f;
 
   //float speed = 3.0f;
   //float mouseSpeed = 0.005f;
 
   //double xpos, ypos;
 
-  //glDeleteVertexArrays(1, &vertexArrayID);
-  //ImGui_ImplOpenGL3_Shutdown();
-  //ImGui_ImplGlfw_Shutdown();
-  //ImGui::DestroyContext();
-
-  //glfwDestroyWindow(window);
-  //glfwTerminate();
-
   return 0;
 }
 
-//void imguiMat4Table(glm::mat4 matrix, const char *name) {
-//  if (ImGui::BeginTable(name, 4)) {
-//    for (int i = 0; i < 4; i++) {
-//      for (int j = 0; j < 4; j++) {
-//        ImGui::TableNextColumn();
-//        ImGui::Text("%f", matrix[i][j]);
-//      }
-//    }
-//    ImGui::EndTable();
-//  }
-//}
+void destroy() {
+  glDeleteVertexArrays(1, &vertexArrayID);
+  ImGui_ImplOpenGL3_Shutdown();
+  ImGui_ImplGlfw_Shutdown();
+  ImGui::DestroyContext();
+
+  glfwDestroyWindow(window);
+  glfwTerminate();
+}
+
+void imguiMat4Table(glm::mat4 matrix, const char *name) {
+  if (ImGui::BeginTable(name, 4)) {
+    for (int i = 0; i < 4; i++) {
+      for (int j = 0; j < 4; j++) {
+        ImGui::TableNextColumn();
+        ImGui::Text("%f", matrix[i][j]);
+      }
+    }
+    ImGui::EndTable();
+  }
+}
 
 void render(Scene scene) {
   // Clear this mf
@@ -323,6 +341,19 @@ void render(Scene scene) {
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
   ImGuizmo::BeginFrame();
+
+  Camera *currentCamera = scene.cameras[scene.activeCamera];
+
+  // Compute the V and P for the MVP
+  glm::mat4 viewMatrix = glm::inverse(glm::translate(glm::mat4(1), currentCamera->position) * (mat4_cast(currentCamera->rotation)));
+  glm::mat4 projectionMatrix = glm::perspective(currentCamera->fov, (float)WIDTH / (float)HEIGHT, currentCamera->nearPlane, currentCamera->farPlane);
+
+  ImGui::Begin("Matrix Debug");
+  ImGui::Text("Computed View Matrix");
+  imguiMat4Table(viewMatrix, "cvm");
+  ImGui::Text("Computed Projection Matrix");
+  imguiMat4Table(projectionMatrix, "cpm");
+  ImGui::End();
 
   for (int i = 0; i < scene.assets.size(); i++) {
     Asset *currentAsset = scene.assets[i];
@@ -335,34 +366,44 @@ void render(Scene scene) {
     glm::mat4 scalingMatrix = glm::scale(glm::mat4(1), currentAsset->scaling);
     glm::mat4 modelMatrix = translationMatrix * rotationMatrix * scalingMatrix;
 
-    mvp = projectionMatrix * viewMatrix * modelMatrix;
+    glm::mat4 mvp = projectionMatrix * viewMatrix * modelMatrix;
 
     char assetName[] = "Asset: 00";
     sprintf(assetName, "Asset: %d", i);
     ImGui::Begin(assetName);
-    static ImGuizmo::OPERATION mCurrentGizmoOperation(ImGuizmo::ROTATE);
-    static ImGuizmo::MODE mCurrentGizmoMode(ImGuizmo::WORLD);
-    if (ImGui::RadioButton("Translate", mCurrentGizmoOperation == ImGuizmo::TRANSLATE)) {
-      mCurrentGizmoOperation = ImGuizmo::TRANSLATE;
-    }
-    ImGui::SameLine();
-    if (ImGui::RadioButton("Rotate", mCurrentGizmoOperation == ImGuizmo::TRANSLATE)) {
-      mCurrentGizmoOperation = ImGuizmo::ROTATE;
-    }
-    ImGui::SameLine();
-    if (ImGui::RadioButton("Scale", mCurrentGizmoOperation == ImGuizmo::TRANSLATE)) {
-      mCurrentGizmoOperation = ImGuizmo::SCALE;
-    }
+      static ImGuizmo::OPERATION mCurrentGizmoOperation(ImGuizmo::ROTATE);
+      static ImGuizmo::MODE mCurrentGizmoMode(ImGuizmo::WORLD);
+      if (ImGui::RadioButton("Translate",
+                             mCurrentGizmoOperation == ImGuizmo::TRANSLATE)) {
+        mCurrentGizmoOperation = ImGuizmo::TRANSLATE;
+      }
+      ImGui::SameLine();
+      if (ImGui::RadioButton("Rotate",
+                             mCurrentGizmoOperation == ImGuizmo::TRANSLATE)) {
+        mCurrentGizmoOperation = ImGuizmo::ROTATE;
+      }
+      ImGui::SameLine();
+      if (ImGui::RadioButton("Scale",
+                             mCurrentGizmoOperation == ImGuizmo::TRANSLATE)) {
+        mCurrentGizmoOperation = ImGuizmo::SCALE;
+      }
     glm::vec3 rotationEuler = eulerAngles(currentAsset->rotation);
     ImGui::DragFloat3("Translate", (float*)&currentAsset->position);
     ImGui::DragFloat3("Rotate", (float*)&rotationEuler);
     ImGui::DragFloat3("Scale", (float*)&currentAsset->scaling);
 
-    ImGuiIO& io = ImGui::GetIO();
-    ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
-    ImGuizmo::Manipulate((const float*)&viewMatrix, (const float*)&projectionMatrix, mCurrentGizmoOperation, mCurrentGizmoMode, (float*)&modelMatrix, NULL, NULL);
-    ImGuizmo::DecomposeMatrixToComponents((const float*)&modelMatrix, (float *)&currentAsset->position, (float *)&rotationEuler, (float *)&currentAsset->scaling);
-    currentAsset->rotation = glm::quat(rotationEuler);
+    if (ImGui::IsWindowFocused()) {
+      ImGuiIO &io = ImGui::GetIO();
+      ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
+      ImGuizmo::Manipulate((const float *)&viewMatrix,
+                           (const float *)&projectionMatrix,
+                           mCurrentGizmoOperation, mCurrentGizmoMode,
+                           (float *)&modelMatrix, NULL, NULL);
+      ImGuizmo::DecomposeMatrixToComponents(
+          (const float *)&modelMatrix, (float *)&currentAsset->position,
+          (float *)&rotationEuler, (float *)&currentAsset->scaling);
+      //currentAsset->rotation = glm::quat(rotationEuler);
+    }
 
     ImGui::End();
 
@@ -418,10 +459,15 @@ int main() {
   fred::Asset cone(coneModel, buffBlackGuy, basicShader);
   fred::Asset coneTwo(coneModel, buffBlackGuy, basicShader);
 
+  fred::Camera mainCamera(glm::vec3(4, 3, 3));
+  mainCamera.lookAt(glm::vec3(0, 0, 0));
+
   fred::Scene scene = fred::Scene();
 
-  scene.addAsset(&cone);
-  scene.addAsset(&coneTwo);
+  scene.addCamera(mainCamera);
+
+  scene.addAsset(cone);
+  scene.addAsset(coneTwo);
 
   while (fred::shouldExit()) {
   //while (1) {
@@ -431,6 +477,8 @@ int main() {
     eulerAngles.x += glm::radians(1.0f);
     coneTwo.rotation = glm::quat(eulerAngles);
   }
+
+  fred::destroy();
 
   return 0;
 }

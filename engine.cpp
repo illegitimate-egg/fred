@@ -16,8 +16,7 @@
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
 #include <imgui.h>
-#define VGIZMO_USES_GLM
-#include <imGuIZMO.quat/imGuIZMOquat.h>
+#include <ImGuizmo.h>
 #include <clog/clog.h>
 
 #include <SOIL2.h>
@@ -42,6 +41,7 @@ static bool loadModel(const char *path, std::vector<unsigned short> &indices,
                       std::vector<glm::vec3> &vertices,
                       std::vector<glm::vec2> &uvs,
                       std::vector<glm::vec3> &normals) {
+  clog_log(CLOG_LEVEL_DEBUG, "Loading model: %s", path);
   Assimp::Importer importer;
 
   const aiScene *scene = importer.ReadFile(
@@ -76,6 +76,7 @@ static bool loadModel(const char *path, std::vector<unsigned short> &indices,
 }
 
 GLuint loadTexture(const char *path) {
+  clog_log(CLOG_LEVEL_DEBUG, "Loading texture: %s", path);
   GLuint texture = SOIL_load_OGL_texture(
       path, SOIL_LOAD_AUTO,
       SOIL_CREATE_NEW_ID,
@@ -321,6 +322,7 @@ void render(Scene scene) {
   ImGui_ImplOpenGL3_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
+  ImGuizmo::BeginFrame();
 
   for (int i = 0; i < scene.assets.size(); i++) {
     Asset *currentAsset = scene.assets[i];
@@ -338,7 +340,30 @@ void render(Scene scene) {
     char assetName[] = "Asset: 00";
     sprintf(assetName, "Asset: %d", i);
     ImGui::Begin(assetName);
-    ImGui::gizmo3D(assetName, currentAsset->rotation);
+    static ImGuizmo::OPERATION mCurrentGizmoOperation(ImGuizmo::ROTATE);
+    static ImGuizmo::MODE mCurrentGizmoMode(ImGuizmo::WORLD);
+    if (ImGui::RadioButton("Translate", mCurrentGizmoOperation == ImGuizmo::TRANSLATE)) {
+      mCurrentGizmoOperation = ImGuizmo::TRANSLATE;
+    }
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Rotate", mCurrentGizmoOperation == ImGuizmo::TRANSLATE)) {
+      mCurrentGizmoOperation = ImGuizmo::ROTATE;
+    }
+    ImGui::SameLine();
+    if (ImGui::RadioButton("Scale", mCurrentGizmoOperation == ImGuizmo::TRANSLATE)) {
+      mCurrentGizmoOperation = ImGuizmo::SCALE;
+    }
+    glm::vec3 rotationEuler = eulerAngles(currentAsset->rotation);
+    ImGui::DragFloat3("Translate", (float*)&currentAsset->position);
+    ImGui::DragFloat3("Rotate", (float*)&rotationEuler);
+    ImGui::DragFloat3("Scale", (float*)&currentAsset->scaling);
+
+    ImGuiIO& io = ImGui::GetIO();
+    ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
+    ImGuizmo::Manipulate((const float*)&viewMatrix, (const float*)&projectionMatrix, mCurrentGizmoOperation, mCurrentGizmoMode, (float*)&modelMatrix, NULL, NULL);
+    ImGuizmo::DecomposeMatrixToComponents((const float*)&modelMatrix, (float *)&currentAsset->position, (float *)&rotationEuler, (float *)&currentAsset->scaling);
+    currentAsset->rotation = glm::quat(rotationEuler);
+
     ImGui::End();
 
     glUniformMatrix4fv(currentAsset->matrixID, 1, GL_FALSE, &mvp[0][0]);

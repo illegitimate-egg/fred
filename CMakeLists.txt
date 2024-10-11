@@ -55,15 +55,17 @@ add_library(
   include/imgui/backends/imgui_impl_opengl3.cpp)
 target_link_libraries(imgui glfw)
 
-include_directories(include/imGuIZMO.quat)
+include_directories(include/ImGuizmo)
 add_library(
-  imGuIZMO STATIC
-  include/imGuIZMO.quat/imGuIZMO.quat/imGuIZMOquat.cpp
+  imGuizmo STATIC
+  include/ImGuizmo/GraphEditor.cpp
+  include/ImGuizmo/ImCurveEdit.cpp
+  include/ImGuizmo/ImGradient.cpp
+  include/ImGuizmo/ImGuizmo.cpp
+  include/ImGuizmo/ImSequencer.cpp
 )
-target_link_libraries(imGuIZMO imgui)
-target_compile_definitions(imGuIZMO PUBLIC -DIMGUIZMO_IMGUI_FOLDER=)
+target_link_libraries(imGuizmo imgui)
 
 add_executable(fred engine.cpp shader.c)
 target_link_libraries(fred $<$<PLATFORM_ID:Linux>:-lm> glad_gl_core_33 glm glfw
-                      soil2 assimp imgui imGuIZMO clog)
-target_compile_definitions(fred PUBLIC -DIMGUIZMO_IMGUI_FOLDER=)
+                      soil2 assimp imgui imGuizmo clog)

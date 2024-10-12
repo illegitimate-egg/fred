@@ -25,6 +25,3 @@
 [submodule "include/glad"]
 	path = include/glad
 	url = https://github.com/Dav1dde/glad.git
-[submodule "include/ImGuizmo"]
-	path = include/ImGuizmo
-	url = https://github.com/CedricGuillemet/ImGuizmo.git

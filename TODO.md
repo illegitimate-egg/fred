@@ -1,5 +1,5 @@
 - [x] Destruct all at the end
-- [x] ~~Make ImGuIZMO.quat work~~ No longer required
+- [ ] Make ImGuIZMO.quat work
 - [ ] Finish modularization
 - [ ] Make SOIL2 stop giving that smelly error message
     Wtf is this warning?
@@ -15,11 +15,17 @@ This warning is for project developers.  Use -Wno-dev to suppress it.
 CMake Warning (dev) at include/SOIL2/CMakeLists.txt:67 (install):
   Target soil2 has PUBLIC_HEADER files but no PUBLIC_HEADER DESTINATION.
 This warning is for project developers.  Use -Wno-dev to suppress it.
+
 - [x] Overhaul asset debug screen
 - [x] Simple Lighting
-- [ ] Lightmapped Lighting
+- [ ] Lightmapped/Shadowmapped Lighting
 - [ ] Get ziggy with it
 - [x] Implement Cameras
+- [ ] Text
+- [ ] RT/texture rendering
+- [ ] Additional constructors for arguements that are potentially optional
+- [ ] Billboards / Instancing
+- [ ] Multiple lights
 
 - [ ] Physics
 - [ ] Sound

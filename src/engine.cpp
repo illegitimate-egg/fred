@@ -373,9 +373,9 @@ void destroy() {
 void render(Scene scene) {
   // Clear this mf
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
   static double lastTime = glfwGetTime();
   double currentTime = glfwGetTime();
-
   deltaTime = float(currentTime - lastTime);
   lastTime = currentTime;
 
@@ -476,10 +476,21 @@ void render(Scene scene) {
 
 // Userspace ================================================================ //
 
+fred::Scene scene;
+
 void renderCallback() {
   ImGui::Begin("User Render Callback");
   ImGui::Text("Frametime (ms): %f", fred::getUnscaledDeltaTime() * 1000);
   ImGui::Text("FPS: %f", 1/fred::getUnscaledDeltaTime());
+  ImGui::SeparatorText("Camera");
+  fred::Camera *currentCamera = scene.cameras[scene.activeCamera];
+  glm::vec3 rotationEuler = glm::degrees(eulerAngles(currentCamera->rotation));
+  ImGui::DragFloat3("Translate", (float*)&currentCamera->position, 0.01f);
+  ImGui::DragFloat3("Rotate", (float*)&rotationEuler);
+  float fovDeg = glm::degrees(currentCamera->fov);
+  ImGui::DragFloat("FOV", (float*)&fovDeg);
+  currentCamera->fov = glm::radians(fovDeg);
+  currentCamera->rotation = glm::quat(glm::radians(rotationEuler));
   ImGui::End();
 }
 
@@ -498,7 +509,7 @@ int main() {
   fred::Camera mainCamera(glm::vec3(4, 3, 3));
   mainCamera.lookAt(glm::vec3(0, 0, 0));
 
-  fred::Scene scene = fred::Scene();
+  scene = fred::Scene();
 
   scene.addCamera(mainCamera);
 

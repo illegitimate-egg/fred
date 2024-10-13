@@ -16,7 +16,7 @@ CMake Warning (dev) at include/SOIL2/CMakeLists.txt:67 (install):
   Target soil2 has PUBLIC_HEADER files but no PUBLIC_HEADER DESTINATION.
 This warning is for project developers.  Use -Wno-dev to suppress it.
 - [x] Overhaul asset debug screen
-- [ ] Simple Lighting
+- [x] Simple Lighting
 - [ ] Lightmapped Lighting
 - [ ] Get ziggy with it
 - [x] Implement Cameras

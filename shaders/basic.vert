@@ -7,10 +7,10 @@ layout(location = 1) in vec2 vertexUV;
 out vec2 UV;
 
 // Model view projection from the CPU
-uniform mat4 MVP;
+uniform mat4 mvp;
 
 void main() {
-    gl_Position = MVP * vec4(vertexPosition_modelspace, 1);
+    gl_Position = mvp * vec4(vertexPosition_modelspace, 1);
     //gl_Position = vec4(vertexPosition_modelspace, 1);
 
     vec2 UV_FLIPPED;

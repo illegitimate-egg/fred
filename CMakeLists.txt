@@ -30,31 +30,31 @@ if(CMAKE_BINARY_DIR MATCHES " ")
     WARNING "Spaces in the build dir can cause errors, thou art been warned\n")
 endif()
 
-add_subdirectory(include/glm)
-add_subdirectory(include/glfw)
-add_subdirectory(include/SOIL2)
-add_subdirectory(include/assimp)
-add_subdirectory(include/CLog)
+add_subdirectory(extern/glm)
+add_subdirectory(extern/glfw)
+add_subdirectory(extern/SOIL2)
+add_subdirectory(extern/assimp)
+add_subdirectory(extern/CLog)
 
 # Glad is configured using cmake (unlike glew)
 # https://github.com/Dav1dde/glad/wiki/C#cmake
-set(GLAD_SOURCES_DIR "${PROJECT_SOURCE_DIR}/include/glad")
+set(GLAD_SOURCES_DIR "${PROJECT_SOURCE_DIR}/extern/glad")
 add_subdirectory("${GLAD_SOURCES_DIR}/cmake" glad_cmake)
 
 glad_add_library(glad_gl_core_33 REPRODUCIBLE API gl:core=3.3)
 
-include_directories(include/imgui) # ImGui doesn't have a CMakeLists of its own
+include_directories(extern/imgui) # ImGui doesn't have a CMakeLists of its own
 add_library(
   imgui STATIC
-  include/imgui/imgui.cpp
-  include/imgui/imgui_demo.cpp
-  include/imgui/imgui_draw.cpp
-  include/imgui/imgui_tables.cpp
-  include/imgui/imgui_widgets.cpp
-  include/imgui/backends/imgui_impl_glfw.cpp # Zingaloid backend import
-  include/imgui/backends/imgui_impl_opengl3.cpp)
+  extern/imgui/imgui.cpp
+  extern/imgui/imgui_demo.cpp
+  extern/imgui/imgui_draw.cpp
+  extern/imgui/imgui_tables.cpp
+  extern/imgui/imgui_widgets.cpp
+  extern/imgui/backends/imgui_impl_glfw.cpp # Zingaloid backend import
+  extern/imgui/backends/imgui_impl_opengl3.cpp)
 target_link_libraries(imgui glfw)
 
-add_executable(fred engine.cpp shader.c)
+add_executable(fred src/engine.cpp src/shader.c)
 target_link_libraries(fred $<$<PLATFORM_ID:Linux>:-lm> glad_gl_core_33 glm glfw
                       soil2 assimp imgui clog)

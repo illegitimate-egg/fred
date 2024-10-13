@@ -1,4 +1,3 @@
-#include <cstddef>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,6 +65,10 @@ static bool loadModel(const char *path, std::vector<unsigned short> &indices,
   }
 
   normals.reserve(mesh->mNumVertices);
+  for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
+    aiVector3D normal = mesh->mNormals[i];
+    normals.push_back(glm::vec3(normal.x, normal.y, normal.z));
+  }
   for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
     indices.push_back(mesh->mFaces[i].mIndices[0]);
     indices.push_back(mesh->mFaces[i].mIndices[1]);
@@ -165,29 +168,47 @@ public:
   GLuint *elementBuffer;
 
   GLuint matrixID;
-  GLuint textureID;
+  GLuint viewMatrixID;
+  GLuint modelMatrixID;
+
+  GLuint albedoTextureID;
+  GLuint specularTextureID;
+
+  GLuint lightID;
+  GLuint lightColor;
+  GLuint lightPower;
 
   glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
   glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f); // https://en.wikipedia.org/wiki/Quaternion
   glm::vec3 scaling = glm::vec3(1.0f, 1.0f, 1.0f);
 
-  GLuint *modelTexture;
+  GLuint *albedoTexture;
+  GLuint *specularTexture;
 
   GLuint *shaderProgram;
 
-  Asset(Model &model, Texture &texture, Shader &shader) {
+  Asset(Model &model, Texture &albedoTextureI, Texture &specularTextureI, Shader &shader) {
     indices = &model.indices;
     vertexBuffer = &model.vertexBuffer;
     uvBuffer = &model.uvBuffer;
     normalBuffer = &model.normalBuffer;
     elementBuffer = &model.elementBuffer;
 
-    modelTexture = &texture.texture;
+    albedoTexture = &albedoTextureI.texture;
+    specularTexture = &specularTextureI.texture;
 
     shaderProgram = &shader.shaderProgram;
 
-    matrixID = glGetUniformLocation(*shaderProgram, "MVP");
-    textureID = glGetUniformLocation(*shaderProgram, "textureSampler");
+    matrixID = glGetUniformLocation(*shaderProgram, "mvp");
+    viewMatrixID = glGetUniformLocation(*shaderProgram, "v");
+    modelMatrixID = glGetUniformLocation(*shaderProgram, "m");
+
+    albedoTextureID = glGetUniformLocation(*shaderProgram, "albedoSampler");
+    specularTextureID = glGetUniformLocation(*shaderProgram, "specularSampler");
+
+    lightID = glGetUniformLocation(*shaderProgram, "lightPosition_worldspace");
+    lightColor = glGetUniformLocation(*shaderProgram, "lightColor");
+    lightPower = glGetUniformLocation(*shaderProgram, "lightPower");
   }
 };
 
@@ -393,11 +414,24 @@ void render(Scene scene) {
     ImGui::End();
 
     glUniformMatrix4fv(currentAsset->matrixID, 1, GL_FALSE, &mvp[0][0]);
+    glUniformMatrix4fv(currentAsset->modelMatrixID, 1, GL_FALSE, &modelMatrix[0][0]);
+    glUniformMatrix4fv(currentAsset->viewMatrixID, 1, GL_FALSE, &viewMatrix[0][0]);
+
+    glm::vec3 lightPos = glm::vec3(4, 4, 4);
+    glm::vec3 lightColor = glm::vec3(1, 1, 1);
+    float lightPower = 50;
+    glUniform3f(currentAsset->lightID, lightPos.x, lightPos.y, lightPos.z);
+    glUniform3f(currentAsset->lightColor, lightColor.x, lightColor.y, lightColor.z);
+    glUniform1f(currentAsset->lightPower, lightPower);
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, *currentAsset->modelTexture);
+    glBindTexture(GL_TEXTURE_2D, *currentAsset->albedoTexture);
     // Set sampler texture
-    glUniform1i(currentAsset->textureID, 0);
+    glUniform1i(currentAsset->albedoTextureID, 0);
+
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, *currentAsset->specularTexture);
+    glUniform1i(currentAsset->specularTextureID, 1);
 
     // DRAWING HAPPENS HERE
     // Vertex Data
@@ -452,10 +486,14 @@ void renderCallback() {
 int main() {
   fred::initWindow();
   fred::Model coneModel("../models/model.obj");
+  fred::Model suzanneMod("../models/suzanne.obj");
   fred::Texture buffBlackGuy("../textures/results/texture_BMP_DXT5_3.DDS");
-  fred::Shader basicShader("../shaders/shader.vert", "../shaders/shader.frag");
-  fred::Asset cone(coneModel, buffBlackGuy, basicShader);
-  fred::Asset coneTwo(coneModel, buffBlackGuy, basicShader);
+  fred::Texture suzanneTexAlb("../textures/results/suzanne_albedo_DXT5.DDS");
+  fred::Texture suzanneTexSpec("../textures/results/suzanne_specular_DXT5.DDS");
+  fred::Shader basicShader("../shaders/basic.vert", "../shaders/basic.frag");
+  fred::Shader basicLitShader("../shaders/basic_lit.vert", "../shaders/basic_lit.frag");
+  fred::Asset cone(coneModel, buffBlackGuy, buffBlackGuy, basicShader);
+  fred::Asset suzanne(suzanneMod, suzanneTexAlb, suzanneTexSpec, basicLitShader);
 
   fred::Camera mainCamera(glm::vec3(4, 3, 3));
   mainCamera.lookAt(glm::vec3(0, 0, 0));
@@ -465,7 +503,7 @@ int main() {
   scene.addCamera(mainCamera);
 
   scene.addAsset(cone);
-  scene.addAsset(coneTwo);
+  scene.addAsset(suzanne);
 
   scene.setRenderCallback(&renderCallback);
 
@@ -474,9 +512,9 @@ int main() {
   while (fred::shouldExit()) {
     fred::render(scene);
     cone.position.x += 0.01 * fred::getDeltaTime();
-    glm::vec3 eulerAngles = glm::eulerAngles(coneTwo.rotation);
+    glm::vec3 eulerAngles = glm::eulerAngles(suzanne.rotation);
     eulerAngles.x += glm::radians(1.0f) * fred::getDeltaTime();
-    coneTwo.rotation = glm::quat(eulerAngles);
+    suzanne.rotation = glm::quat(eulerAngles);
   }
 
   fred::destroy();

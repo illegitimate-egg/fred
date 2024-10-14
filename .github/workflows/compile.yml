@@ -1,0 +1,32 @@
+name: Test Compilation
+
+on:
+  push:
+    branches: [ $default-branch ]
+  pull_request:
+    branches: [ $default-branch ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install python depdencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install jinja2
+    - name: Install dependencies
+      run: |
+        DEBIAN_FRONTEND=noninteractive apt update -y
+        DEBIAN_FRONTEND=noninteractive apt install -y build-essential cmake pkg-config mesa-utils mesa-common-dev libao-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
+    - name: CMake build files
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+    - name: Build project
+      run: |
+        cd build
+        make

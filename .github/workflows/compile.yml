@@ -20,8 +20,8 @@ jobs:
         pip install jinja2
     - name: Install dependencies
       run: |
-        DEBIAN_FRONTEND=noninteractive apt update -y
-        DEBIAN_FRONTEND=noninteractive apt install -y build-essential cmake pkg-config mesa-utils mesa-common-dev libao-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
+        DEBIAN_FRONTEND=noninteractive sudo apt update -y
+        DEBIAN_FRONTEND=noninteractive sudo apt install -y build-essential cmake pkg-config mesa-utils mesa-common-dev libao-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
     - name: CMake build files
       run: |
         mkdir build

@@ -2,9 +2,9 @@ name: Test Compilation
 
 on:
   push:
-    branches: [ $default-branch ]
+    branches: [ "master" ]
   pull_request:
-    branches: [ $default-branch ]
+    branches: [ "master" ]
   workflow_dispatch:
 
 jobs:
@@ -14,7 +14,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-      submodules: 'true'
+      with: 
+        submodules: 'true'
     - name: Install python depdencies
       run: |
         python -m pip install --upgrade pip

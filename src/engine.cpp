@@ -15,9 +15,7 @@
 #define IMGUI_DEFINE_MATH_OPERATORS // ImGui
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
-#include <imgui/imgui.h>
-#define VGIZMO_USES_GLM
-#include <imGuIZMO.quat/imGuIZMOquat.h>
+#include <imgui.h>
 #include <clog/clog.h>
 
 #include <SOIL2.h>
@@ -42,6 +40,7 @@ static bool loadModel(const char *path, std::vector<unsigned short> &indices,
                       std::vector<glm::vec3> &vertices,
                       std::vector<glm::vec2> &uvs,
                       std::vector<glm::vec3> &normals) {
+  clog_log(CLOG_LEVEL_DEBUG, "Loading model: %s", path);
   Assimp::Importer importer;
 
   const aiScene *scene = importer.ReadFile(
@@ -66,6 +65,10 @@ static bool loadModel(const char *path, std::vector<unsigned short> &indices,
   }
 
   normals.reserve(mesh->mNumVertices);
+  for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
+    aiVector3D normal = mesh->mNormals[i];
+    normals.push_back(glm::vec3(normal.x, normal.y, normal.z));
+  }
   for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
     indices.push_back(mesh->mFaces[i].mIndices[0]);
     indices.push_back(mesh->mFaces[i].mIndices[1]);
@@ -76,6 +79,7 @@ static bool loadModel(const char *path, std::vector<unsigned short> &indices,
 }
 
 GLuint loadTexture(const char *path) {
+  clog_log(CLOG_LEVEL_DEBUG, "Loading texture: %s", path);
   GLuint texture = SOIL_load_OGL_texture(
       path, SOIL_LOAD_AUTO,
       SOIL_CREATE_NEW_ID,
@@ -164,49 +168,122 @@ public:
   GLuint *elementBuffer;
 
   GLuint matrixID;
-  GLuint textureID;
+  GLuint viewMatrixID;
+  GLuint modelMatrixID;
+
+  GLuint albedoTextureID;
+  GLuint specularTextureID;
+
+  GLuint lightID;
+  GLuint lightColor;
+  GLuint lightPower;
 
   glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
   glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f); // https://en.wikipedia.org/wiki/Quaternion
   glm::vec3 scaling = glm::vec3(1.0f, 1.0f, 1.0f);
 
-  GLuint *modelTexture;
+  GLuint *albedoTexture;
+  GLuint *specularTexture;
 
   GLuint *shaderProgram;
 
-  Asset(Model &model, Texture &texture, Shader &shader) {
+  Asset(Model &model, Texture &albedoTextureI, Texture &specularTextureI, Shader &shader) {
     indices = &model.indices;
     vertexBuffer = &model.vertexBuffer;
     uvBuffer = &model.uvBuffer;
     normalBuffer = &model.normalBuffer;
     elementBuffer = &model.elementBuffer;
 
-    modelTexture = &texture.texture;
+    albedoTexture = &albedoTextureI.texture;
+    specularTexture = &specularTextureI.texture;
 
     shaderProgram = &shader.shaderProgram;
 
-    matrixID = glGetUniformLocation(*shaderProgram, "MVP");
-    textureID = glGetUniformLocation(*shaderProgram, "textureSampler");
+    matrixID = glGetUniformLocation(*shaderProgram, "mvp");
+    viewMatrixID = glGetUniformLocation(*shaderProgram, "v");
+    modelMatrixID = glGetUniformLocation(*shaderProgram, "m");
+
+    albedoTextureID = glGetUniformLocation(*shaderProgram, "albedoSampler");
+    specularTextureID = glGetUniformLocation(*shaderProgram, "specularSampler");
+
+    lightID = glGetUniformLocation(*shaderProgram, "lightPosition_worldspace");
+    lightColor = glGetUniformLocation(*shaderProgram, "lightColor");
+    lightPower = glGetUniformLocation(*shaderProgram, "lightPower");
+  }
+};
+
+class Camera {
+public:
+  glm::vec3 position;
+  glm::quat rotation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+
+  float fov = glm::radians(60.0f);
+  float nearPlane = 0.1f;
+  float farPlane = 100.0f;
+
+  
+  Camera(glm::vec3 initPosition) {
+    position = initPosition;
+  }
+  Camera(glm::vec3 initPosition, glm::quat initRotation) {
+    position = initPosition;
+    rotation = initRotation;
+  }
+  Camera(glm::vec3 initPosition, glm::quat initRotation, float initFov) { 
+    position = initPosition;
+    rotation = initRotation;
+    fov = initFov;
+  }
+  Camera(glm::vec3 initPosition, glm::quat initRotation, float initFov, float initNearPlane, float initFarPlane) {
+    position = initPosition;
+    rotation = initRotation;
+    fov = initFov;
+    nearPlane = initNearPlane;
+    farPlane = initFarPlane;
+  }
+  void lookAt(glm::vec3 target) { // I think I lost it writing this
+    glm::mat4 lookAtMatrix = glm::lookAt(position, target, glm::vec3(0, 1, 0));
+    rotation = glm::conjugate(glm::quat(lookAtMatrix));
   }
 };
 
 class Scene {
 public:
   std::vector<Asset*> assets;
-  void addAsset(Asset *asset) {
-    assets.push_back(asset);
+  std::vector<Camera*> cameras;
+  void (*renderCallback)() = NULL;
+
+  int activeCamera = 0;
+
+  void addAsset(Asset &asset) {
+    assets.push_back(&asset);
+  }
+  void addCamera(Camera &camera) {
+    cameras.push_back(&camera);
+  }
+  void setRenderCallback(void (*callback)()) {
+    renderCallback = callback;
   }
 };
 
 GLFWwindow *window;
+GLuint vertexArrayID;
+float deltaTime = 0;
+float deltaTimeMultiplier = 1.0f;
+
+void setDeltaTimeMultiplier(float mult) {
+  deltaTimeMultiplier = mult;
+}
+float getDeltaTime() {
+  return deltaTime * deltaTimeMultiplier;
+}
+float getUnscaledDeltaTime() {
+  return deltaTime;
+}
 
 static bool shouldExit() {
 return glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS && glfwWindowShouldClose(window) == 0;
 }
-
-glm::mat4 mvp; // TODO: REMOVE THIS PLLAAAHSE
-glm::mat4 viewMatrix;
-glm::mat4 projectionMatrix;
 
 static int initWindow() {
   glfwSetErrorCallback(glfwErrorCallback);
@@ -253,22 +330,6 @@ static int initWindow() {
   ImGui_ImplGlfw_InitForOpenGL(window, true);
   ImGui_ImplOpenGL3_Init("#version 330");
 
-
-  // I love glm
-  // Projection matrix, 45deg FOV, 4:3 Aspect Ratio, Planes: 0.1units ->
-  // 100units
-  projectionMatrix = glm::perspective(
-      glm::radians(45.0f), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f);
-
-  // Camera matrix
-  viewMatrix =
-      glm::lookAt(glm::vec3(4, 3, 3), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-
-  glm::mat4 model = glm::mat4(1.0f);
-
-  // Model view projection, the combination of the three vectors
-  mvp = projectionMatrix * viewMatrix * model;
-
   glEnable(GL_DEPTH_TEST); // Turn on the Z-buffer
   glDepthFunc(GL_LESS);    // Accept only the closest fragments
 
@@ -276,51 +337,57 @@ static int initWindow() {
 
   glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 
-  GLuint vertexArrayID;
   glGenVertexArrays(1, &vertexArrayID);
   glBindVertexArray(vertexArrayID);
-
-  // Define camera stuff
-  //glm::vec3 position = {4, 3, 3};
-  //float horizontalAngle = 3.14f;
-  //float verticalAngle = -0.1f;
-  //float initialFOV = 60.0f;
 
   //float speed = 3.0f;
   //float mouseSpeed = 0.005f;
 
   //double xpos, ypos;
 
-  //glDeleteVertexArrays(1, &vertexArrayID);
-  //ImGui_ImplOpenGL3_Shutdown();
-  //ImGui_ImplGlfw_Shutdown();
-  //ImGui::DestroyContext();
-
-  //glfwDestroyWindow(window);
-  //glfwTerminate();
-
   return 0;
 }
 
-//void imguiMat4Table(glm::mat4 matrix, const char *name) {
-//  if (ImGui::BeginTable(name, 4)) {
-//    for (int i = 0; i < 4; i++) {
-//      for (int j = 0; j < 4; j++) {
-//        ImGui::TableNextColumn();
-//        ImGui::Text("%f", matrix[i][j]);
-//      }
-//    }
-//    ImGui::EndTable();
-//  }
-//}
+void destroy() {
+  glDeleteVertexArrays(1, &vertexArrayID);
+  ImGui_ImplOpenGL3_Shutdown();
+  ImGui_ImplGlfw_Shutdown();
+  ImGui::DestroyContext();
+
+  glfwDestroyWindow(window);
+  glfwTerminate();
+}
+
+/*void imguiMat4Table(glm::mat4 matrix, const char *name) {*/
+/*  if (ImGui::BeginTable(name, 4)) {*/
+/*    for (int i = 0; i < 4; i++) {*/
+/*      for (int j = 0; j < 4; j++) {*/
+/*        ImGui::TableNextColumn();*/
+/*        ImGui::Text("%f", matrix[i][j]);*/
+/*      }*/
+/*    }*/
+/*    ImGui::EndTable();*/
+/*  }*/
+/*}*/
 
 void render(Scene scene) {
   // Clear this mf
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+  static double lastTime = glfwGetTime();
+  double currentTime = glfwGetTime();
+  deltaTime = float(currentTime - lastTime);
+  lastTime = currentTime;
+
   ImGui_ImplOpenGL3_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
+
+  Camera *currentCamera = scene.cameras[scene.activeCamera];
+
+  // Compute the V and P for the MVP
+  glm::mat4 viewMatrix = glm::inverse(glm::translate(glm::mat4(1), currentCamera->position) * (mat4_cast(currentCamera->rotation)));
+  glm::mat4 projectionMatrix = glm::perspective(currentCamera->fov, (float)WIDTH / (float)HEIGHT, currentCamera->nearPlane, currentCamera->farPlane);
 
   for (int i = 0; i < scene.assets.size(); i++) {
     Asset *currentAsset = scene.assets[i];
@@ -333,20 +400,38 @@ void render(Scene scene) {
     glm::mat4 scalingMatrix = glm::scale(glm::mat4(1), currentAsset->scaling);
     glm::mat4 modelMatrix = translationMatrix * rotationMatrix * scalingMatrix;
 
-    mvp = projectionMatrix * viewMatrix * modelMatrix;
+    glm::mat4 mvp = projectionMatrix * viewMatrix * modelMatrix;
 
     char assetName[] = "Asset: 00";
     sprintf(assetName, "Asset: %d", i);
     ImGui::Begin(assetName);
-    ImGui::gizmo3D(assetName, currentAsset->rotation);
+    ImGui::Text("Frametime/Deltatime (ms): %f", deltaTime * 1000);
+    glm::vec3 rotationEuler = glm::degrees(eulerAngles(currentAsset->rotation));
+    ImGui::DragFloat3("Translate", (float*)&currentAsset->position, 0.01f);
+    ImGui::DragFloat3("Rotate", (float*)&rotationEuler);
+    ImGui::DragFloat3("Scale", (float*)&currentAsset->scaling, 0.01f);
+    currentAsset->rotation = glm::quat(glm::radians(rotationEuler));
     ImGui::End();
 
     glUniformMatrix4fv(currentAsset->matrixID, 1, GL_FALSE, &mvp[0][0]);
+    glUniformMatrix4fv(currentAsset->modelMatrixID, 1, GL_FALSE, &modelMatrix[0][0]);
+    glUniformMatrix4fv(currentAsset->viewMatrixID, 1, GL_FALSE, &viewMatrix[0][0]);
+
+    glm::vec3 lightPos = glm::vec3(4, 4, 4);
+    glm::vec3 lightColor = glm::vec3(1, 1, 1);
+    float lightPower = 50;
+    glUniform3f(currentAsset->lightID, lightPos.x, lightPos.y, lightPos.z);
+    glUniform3f(currentAsset->lightColor, lightColor.x, lightColor.y, lightColor.z);
+    glUniform1f(currentAsset->lightPower, lightPower);
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, *currentAsset->modelTexture);
+    glBindTexture(GL_TEXTURE_2D, *currentAsset->albedoTexture);
     // Set sampler texture
-    glUniform1i(currentAsset->textureID, 0);
+    glUniform1i(currentAsset->albedoTextureID, 0);
+
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, *currentAsset->specularTexture);
+    glUniform1i(currentAsset->specularTextureID, 1);
 
     // DRAWING HAPPENS HERE
     // Vertex Data
@@ -375,6 +460,10 @@ void render(Scene scene) {
     glDisableVertexAttribArray(2);
   }
 
+  if (scene.renderCallback != NULL) {
+    scene.renderCallback();
+  }
+
   ImGui::Render();
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
@@ -385,27 +474,61 @@ void render(Scene scene) {
 
 } // namespace fred
 
+// Userspace ================================================================ //
+
+fred::Scene scene;
+
+void renderCallback() {
+  ImGui::Begin("User Render Callback");
+  ImGui::Text("Frametime (ms): %f", fred::getUnscaledDeltaTime() * 1000);
+  ImGui::Text("FPS: %f", 1/fred::getUnscaledDeltaTime());
+  ImGui::SeparatorText("Camera");
+  fred::Camera *currentCamera = scene.cameras[scene.activeCamera];
+  glm::vec3 rotationEuler = glm::degrees(eulerAngles(currentCamera->rotation));
+  ImGui::DragFloat3("Translate", (float*)&currentCamera->position, 0.01f);
+  ImGui::DragFloat3("Rotate", (float*)&rotationEuler);
+  float fovDeg = glm::degrees(currentCamera->fov);
+  ImGui::DragFloat("FOV", (float*)&fovDeg);
+  currentCamera->fov = glm::radians(fovDeg);
+  currentCamera->rotation = glm::quat(glm::radians(rotationEuler));
+  ImGui::End();
+}
+
 int main() {
   fred::initWindow();
   fred::Model coneModel("../models/model.obj");
+  fred::Model suzanneMod("../models/suzanne.obj");
   fred::Texture buffBlackGuy("../textures/results/texture_BMP_DXT5_3.DDS");
-  fred::Shader basicShader("../shaders/shader.vert", "../shaders/shader.frag");
-  fred::Asset cone(coneModel, buffBlackGuy, basicShader);
-  fred::Asset coneTwo(coneModel, buffBlackGuy, basicShader);
+  fred::Texture suzanneTexAlb("../textures/results/suzanne_albedo_DXT5.DDS");
+  fred::Texture suzanneTexSpec("../textures/results/suzanne_specular_DXT5.DDS");
+  fred::Shader basicShader("../shaders/basic.vert", "../shaders/basic.frag");
+  fred::Shader basicLitShader("../shaders/basic_lit.vert", "../shaders/basic_lit.frag");
+  fred::Asset cone(coneModel, buffBlackGuy, buffBlackGuy, basicShader);
+  fred::Asset suzanne(suzanneMod, suzanneTexAlb, suzanneTexSpec, basicLitShader);
 
-  fred::Scene scene = fred::Scene();
+  fred::Camera mainCamera(glm::vec3(4, 3, 3));
+  mainCamera.lookAt(glm::vec3(0, 0, 0));
 
-  scene.addAsset(&cone);
-  scene.addAsset(&coneTwo);
+  scene = fred::Scene();
+
+  scene.addCamera(mainCamera);
+
+  scene.addAsset(cone);
+  scene.addAsset(suzanne);
+
+  scene.setRenderCallback(&renderCallback);
+
+  fred::setDeltaTimeMultiplier(20.0f);
 
   while (fred::shouldExit()) {
-  //while (1) {
     fred::render(scene);
-    cone.position.x += 0.01;
-    glm::vec3 eulerAngles = glm::eulerAngles(coneTwo.rotation);
-    eulerAngles.x += glm::radians(1.0f);
-    coneTwo.rotation = glm::quat(eulerAngles);
+    cone.position.x += 0.01 * fred::getDeltaTime();
+    glm::vec3 eulerAngles = glm::eulerAngles(suzanne.rotation);
+    eulerAngles.x += glm::radians(1.0f) * fred::getDeltaTime();
+    suzanne.rotation = glm::quat(eulerAngles);
   }
+
+  fred::destroy();
 
   return 0;
 }

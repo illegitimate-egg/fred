@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <clog/clog.h>
+#include <clog/extra.h>
 
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>

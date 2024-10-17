@@ -16,6 +16,7 @@
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <clog/clog.h>
 
 #include <SOIL2.h>
@@ -268,6 +269,9 @@ public:
 
 GLFWwindow *window;
 GLuint vertexArrayID;
+GLuint frameBufferName = 0;
+GLuint renderedTexture;
+
 float deltaTime = 0;
 float deltaTimeMultiplier = 1.0f;
 
@@ -324,6 +328,8 @@ static int initWindow() {
   (void)io;
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+  io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+  //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
   ImGui::StyleColorsDark();
 
@@ -336,6 +342,32 @@ static int initWindow() {
   glEnable(GL_CULL_FACE); // Backface culling
 
   glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+
+  glGenFramebuffers(1, &frameBufferName);
+  glBindFramebuffer(GL_FRAMEBUFFER, frameBufferName);
+
+  glGenTextures(1, &renderedTexture);
+
+  glBindTexture(GL_TEXTURE_2D, renderedTexture);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 1024, 768, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  // Depth
+  GLuint depthRenderBuffer;
+  glad_glGenRenderbuffers(1, &depthRenderBuffer);
+  glBindRenderbuffer(GL_RENDERBUFFER, depthRenderBuffer);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 1024, 768);
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthRenderBuffer);
+
+  glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, renderedTexture, 0);
+
+  GLenum drawBuffers[1] = {GL_COLOR_ATTACHMENT0};
+  glDrawBuffers(1, drawBuffers);
+
+  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+    return false;
+  }
 
   glGenVertexArrays(1, &vertexArrayID);
   glBindVertexArray(vertexArrayID);
@@ -371,6 +403,20 @@ void destroy() {
 /*}*/
 
 void render(Scene scene) {
+  static ImVec2 viewportSize = ImVec2(1024, 768);
+  static ImVec2 viewportSizeOld = viewportSize;
+  if (viewportSizeOld != viewportSize) {
+    glBindTexture(GL_TEXTURE_2D, renderedTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, viewportSize.x, viewportSize.y, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, viewportSize.x, viewportSize.y);
+  }
+  viewportSizeOld = viewportSize;
+  // Clear imgui viewport (already on primary framebuffer from end of call)
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  // Use viewport framebuffer
+  glBindFramebuffer(GL_FRAMEBUFFER, frameBufferName);
+  glViewport(0, 0, viewportSize.x, viewportSize.y);
+
   // Clear this mf
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -383,11 +429,53 @@ void render(Scene scene) {
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
 
+  static ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_PassthruCentralNode;
+  ImGuiWindowFlags windowFlags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+
+  ImGuiViewport *viewport = ImGui::GetMainViewport();
+  ImGui::SetNextWindowPos(viewport->Pos);
+  ImGui::SetNextWindowSize(viewport->Size);
+  ImGui::SetNextWindowViewport(viewport->ID);
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+  windowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+
+  if (dockspaceFlags & ImGuiDockNodeFlags_PassthruCentralNode) {
+    windowFlags |= ImGuiWindowFlags_NoBackground;
+  }
+
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+  ImGui::Begin("DockSpace", nullptr, windowFlags);
+  ImGui::PopStyleVar();
+  ImGui::PopStyleVar(2);
+
+  ImGuiIO &io = ImGui::GetIO();
+  if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable) {
+    ImGuiID dockspace_id = ImGui::GetID("myDockSpace");
+    ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspaceFlags);
+
+    static bool firstTime = true;
+    if (firstTime) {
+      firstTime = false;
+      ImGui::DockBuilderRemoveNode(dockspace_id);
+      ImGui::DockBuilderAddNode(dockspace_id, dockspaceFlags | ImGuiDockNodeFlags_DockSpace);
+      ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
+
+      ImGuiID dock_id_left = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.2f, nullptr, &dockspace_id);
+      ImGuiID dock_id_down = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Down, 0.25f, nullptr, &dockspace_id);
+
+      ImGui::DockBuilderDockWindow("Down", dock_id_down);
+      ImGui::DockBuilderDockWindow("Left", dock_id_left);
+      ImGui::DockBuilderFinish(dockspace_id);
+    }
+  }
+  ImGui::End(); // Dockspace
+
   Camera *currentCamera = scene.cameras[scene.activeCamera];
 
   // Compute the V and P for the MVP
   glm::mat4 viewMatrix = glm::inverse(glm::translate(glm::mat4(1), currentCamera->position) * (mat4_cast(currentCamera->rotation)));
-  glm::mat4 projectionMatrix = glm::perspective(currentCamera->fov, (float)WIDTH / (float)HEIGHT, currentCamera->nearPlane, currentCamera->farPlane);
+  glm::mat4 projectionMatrix = glm::perspective(currentCamera->fov, (float)viewportSize.x / (float)viewportSize.y, currentCamera->nearPlane, currentCamera->farPlane);
 
   for (int i = 0; i < scene.assets.size(); i++) {
     Asset *currentAsset = scene.assets[i];
@@ -464,8 +552,22 @@ void render(Scene scene) {
     scene.renderCallback();
   }
 
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+  ImGui::Begin("Viewport");
+  ImGui::Image((ImTextureID)frameBufferName, viewportSize, ImVec2(0, 1), ImVec2(1, 0));
+  viewportSize = ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin();
+  ImGui::End();
+  ImGui::PopStyleVar();
+
+
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
+  glViewport(0, 0, WIDTH, HEIGHT);
+
   ImGui::Render();
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+  //ImGui::UpdatePlatformWindows();
+  //ImGui::RenderPlatformWindowsDefault();
+  //glfwMakeContextCurrent(window);
 
   // Swap buffers
   glfwSwapBuffers(window);

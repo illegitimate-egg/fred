@@ -2,7 +2,6 @@
 
 - [ ] Finish modularization
 - [ ] Lightmapped/Shadowmapped Lighting
-- [ ] Get ziggy with it
 - [ ] Convert manual memory alloc to shared and unique pointers
 - [ ] Text
 - [ ] RT/texture rendering
@@ -12,6 +11,8 @@
 - [ ] Physics
 - [ ] Sound
 - [ ] Mesh deformation/animation
+- [ ] BSP Mapping
+- [ ] Window Resizing
 
 ### In progress
 

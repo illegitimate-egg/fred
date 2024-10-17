@@ -22,6 +22,3 @@
 [submodule "extern/glad"]
 	path = extern/glad
 	url = https://github.com/Dav1dde/glad.git
-[submodule "extern/imGuIZMO.quat"]
-	path = extern/imGuIZMO.quat
-	url = https://github.com/BrutPitt/imGuIZMO.quat

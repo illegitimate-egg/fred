@@ -3,7 +3,7 @@
 // Interpolated vals from vert shaders
 in vec2 UV;
 
-out vec3 color;
+layout(location = 0) out vec3 color;
 
 // Values stay constant
 uniform sampler2D textureSampler;

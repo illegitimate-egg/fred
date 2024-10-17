@@ -6,7 +6,7 @@ in vec3 normal_cameraspace;
 in vec3 eyeDirection_cameraspace;
 in vec3 lightDirection_cameraspace;
 
-out vec3 color;
+layout(location = 0) out vec3 color;
 
 uniform sampler2D albedoSampler;
 uniform sampler2D specularSampler;

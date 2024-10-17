@@ -55,6 +55,17 @@ add_library(
   extern/imgui/backends/imgui_impl_opengl3.cpp)
 target_link_libraries(imgui glfw)
 
+include_directories(extern/ImGuizmo)
+add_library(
+  imguizmo STATIC
+  extern/ImGuizmo/GraphEditor.cpp
+  extern/ImGuizmo/ImCurveEdit.cpp
+  extern/ImGuizmo/ImGradient.cpp
+  extern/ImGuizmo/ImGuizmo.cpp
+  extern/ImGuizmo/ImSequencer.cpp
+)
+target_link_libraries(imguizmo imgui)
+
 add_executable(fred src/engine.cpp src/shader.c)
 target_link_libraries(fred $<$<PLATFORM_ID:Linux>:-lm> glad_gl_core_33 glm glfw
-                      soil2 assimp imgui clog)
+                      soil2 assimp imgui imguizmo clog)

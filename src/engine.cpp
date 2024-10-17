@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
 #include <vector>
 
 #include <glad/gl.h>
@@ -17,6 +18,7 @@
 #include <backends/imgui_impl_opengl3.h>
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <ImGuizmo.h>
 #include <clog/clog.h>
 
 #include <SOIL2.h>
@@ -32,7 +34,7 @@ constexpr int WIDTH = 1366;
 constexpr int HEIGHT = 768;
 
 static void glfwErrorCallback(int e, const char *description) {
-  clog_log(CLOG_LEVEL_ERROR, "GLFW Error %d: %s", e, description);
+  clog_log(CLOG_LEVEL_ERROR, "GLFW Error %d: %s\n", e, description);
 }
 
 namespace fred {
@@ -41,14 +43,14 @@ static bool loadModel(const char *path, std::vector<unsigned short> &indices,
                       std::vector<glm::vec3> &vertices,
                       std::vector<glm::vec2> &uvs,
                       std::vector<glm::vec3> &normals) {
-  clog_log(CLOG_LEVEL_DEBUG, "Loading model: %s", path);
+  clog_log(CLOG_LEVEL_DEBUG, "Loading model: %s\n", path);
   Assimp::Importer importer;
 
   const aiScene *scene = importer.ReadFile(
       path, aiProcess_Triangulate | aiProcess_JoinIdenticalVertices |
                 aiProcess_SortByPType);
   if (!scene) {
-    clog_log(CLOG_LEVEL_ERROR, "%s", importer.GetErrorString());
+    clog_log(CLOG_LEVEL_ERROR, "%s\n", importer.GetErrorString());
     return false;
   }
   const aiMesh *mesh = scene->mMeshes[0];
@@ -80,13 +82,13 @@ static bool loadModel(const char *path, std::vector<unsigned short> &indices,
 }
 
 GLuint loadTexture(const char *path) {
-  clog_log(CLOG_LEVEL_DEBUG, "Loading texture: %s", path);
+  clog_log(CLOG_LEVEL_DEBUG, "Loading texture: %s\n", path);
   GLuint texture = SOIL_load_OGL_texture(
       path, SOIL_LOAD_AUTO,
       SOIL_CREATE_NEW_ID,
       SOIL_FLAG_MIPMAPS | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT | SOIL_FLAG_INVERT_Y);
   if (texture == 0) {
-    clog_log(CLOG_LEVEL_WARN, "Texture failed to load");
+    clog_log(CLOG_LEVEL_WARN, "Texture failed to load\n");
     return 0;
   }
   return texture;
@@ -285,15 +287,24 @@ float getUnscaledDeltaTime() {
   return deltaTime;
 }
 
+bool exitFlag = false;
+
 static bool shouldExit() {
-return glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS && glfwWindowShouldClose(window) == 0;
+  return !(glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS && glfwWindowShouldClose(window) == 0) || exitFlag;
+}
+
+std::string log;
+void appendLog(clog_log_level_e, char *message, int length) {
+  log.append(message);
 }
 
 static int initWindow() {
+  clog_set_append_newline(0);
+  clog_set_log_callback(appendLog, 1);
   glfwSetErrorCallback(glfwErrorCallback);
 
   if (!glfwInit()) {
-    clog_log(CLOG_LEVEL_ERROR, "GLFW went shitty time (failed to init)");
+    clog_log(CLOG_LEVEL_ERROR, "GLFW went shitty time (failed to init)\n");
     return 1;
   }
 
@@ -305,7 +316,7 @@ static int initWindow() {
 
   window = glfwCreateWindow(WIDTH, HEIGHT, "Fred", NULL, NULL);
   if (window == NULL) {
-    clog_log(CLOG_LEVEL_ERROR, "Failed to open window.");
+    clog_log(CLOG_LEVEL_ERROR, "Failed to open window.\n");
     glfwTerminate();
     return 1;
   }
@@ -315,10 +326,10 @@ static int initWindow() {
 
   int version;
   if ((version = gladLoadGL(glfwGetProcAddress))) {
-    clog_log(CLOG_LEVEL_DEBUG, "GL version: %d.%d", GLAD_VERSION_MAJOR(version),
+    clog_log(CLOG_LEVEL_DEBUG, "GL version: %d.%d\n", GLAD_VERSION_MAJOR(version),
              GLAD_VERSION_MINOR(version));
   } else {
-    clog_log(CLOG_LEVEL_ERROR, "Failed to init GL!");
+    clog_log(CLOG_LEVEL_ERROR, "Failed to init GL!\n");
     return 1;
   }
 
@@ -329,7 +340,7 @@ static int initWindow() {
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
   io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-  //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+  io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
   ImGui::StyleColorsDark();
 
@@ -404,6 +415,7 @@ void destroy() {
 
 void render(Scene scene) {
   static ImVec2 viewportSize = ImVec2(1024, 768);
+  static ImVec2 viewportPosition = ImVec2(0, 0);
   static ImVec2 viewportSizeOld = viewportSize;
   if (viewportSizeOld != viewportSize) {
     glBindTexture(GL_TEXTURE_2D, renderedTexture);
@@ -428,6 +440,7 @@ void render(Scene scene) {
   ImGui_ImplOpenGL3_NewFrame();
   ImGui_ImplGlfw_NewFrame();
   ImGui::NewFrame();
+  ImGuizmo::BeginFrame();
 
   static ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_PassthruCentralNode;
   ImGuiWindowFlags windowFlags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
@@ -444,10 +457,24 @@ void render(Scene scene) {
     windowFlags |= ImGuiWindowFlags_NoBackground;
   }
 
+  ImGui::ShowDemoWindow();
+
   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
   ImGui::Begin("DockSpace", nullptr, windowFlags);
   ImGui::PopStyleVar();
   ImGui::PopStyleVar(2);
+
+  if (ImGui::BeginMenuBar()) {
+    if (ImGui::BeginMenu("File")) {
+      if (ImGui::MenuItem("Exit")) {
+        exitFlag = true;
+      }
+      ImGui::EndMenu();
+    }
+    
+    ImGui::EndMenuBar();
+  }
+
 
   ImGuiIO &io = ImGui::GetIO();
   if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable) {
@@ -461,11 +488,14 @@ void render(Scene scene) {
       ImGui::DockBuilderAddNode(dockspace_id, dockspaceFlags | ImGuiDockNodeFlags_DockSpace);
       ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
 
-      ImGuiID dock_id_left = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.2f, nullptr, &dockspace_id);
       ImGuiID dock_id_down = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Down, 0.25f, nullptr, &dockspace_id);
+      ImGuiID dock_id_left = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.2f, nullptr, &dockspace_id);
+      ImGuiID dock_id_right = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Right, 0.3f, nullptr, &dockspace_id);
 
-      ImGui::DockBuilderDockWindow("Down", dock_id_down);
-      ImGui::DockBuilderDockWindow("Left", dock_id_left);
+      ImGui::DockBuilderDockWindow("Console", dock_id_down);
+      ImGui::DockBuilderDockWindow("User Render Callback", dock_id_left);
+      ImGui::DockBuilderDockWindow("Viewport", ImGui::DockBuilderGetCentralNode(dockspace_id)->ID);
+      ImGui::DockBuilderDockWindow("Asset Information", dock_id_right);
       ImGui::DockBuilderFinish(dockspace_id);
     }
   }
@@ -489,17 +519,6 @@ void render(Scene scene) {
     glm::mat4 modelMatrix = translationMatrix * rotationMatrix * scalingMatrix;
 
     glm::mat4 mvp = projectionMatrix * viewMatrix * modelMatrix;
-
-    char assetName[] = "Asset: 00";
-    sprintf(assetName, "Asset: %d", i);
-    ImGui::Begin(assetName);
-    ImGui::Text("Frametime/Deltatime (ms): %f", deltaTime * 1000);
-    glm::vec3 rotationEuler = glm::degrees(eulerAngles(currentAsset->rotation));
-    ImGui::DragFloat3("Translate", (float*)&currentAsset->position, 0.01f);
-    ImGui::DragFloat3("Rotate", (float*)&rotationEuler);
-    ImGui::DragFloat3("Scale", (float*)&currentAsset->scaling, 0.01f);
-    currentAsset->rotation = glm::quat(glm::radians(rotationEuler));
-    ImGui::End();
 
     glUniformMatrix4fv(currentAsset->matrixID, 1, GL_FALSE, &mvp[0][0]);
     glUniformMatrix4fv(currentAsset->modelMatrixID, 1, GL_FALSE, &modelMatrix[0][0]);
@@ -556,18 +575,93 @@ void render(Scene scene) {
   ImGui::Begin("Viewport");
   ImGui::Image((ImTextureID)frameBufferName, viewportSize, ImVec2(0, 1), ImVec2(1, 0));
   viewportSize = ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin();
+  viewportPosition = ImGui::GetWindowPos();
   ImGui::End();
   ImGui::PopStyleVar();
 
+  ImGui::Begin("Console");
+  bool autoScroll = true;
+  if(ImGui::BeginPopup("Options")) {
+    ImGui::Checkbox("Auto-scroll", &autoScroll);
+    ImGui::EndPopup();
+  }
+
+  if (ImGui::Button("Options")) {
+    ImGui::OpenPopup("Options");
+  }
+  ImGui::Separator();
+
+  const float footerHeightToReserve = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
+  if (ImGui::BeginChild("ScrollingRegion", ImVec2(0, 0), ImGuiChildFlags_NavFlattened, ImGuiWindowFlags_HorizontalScrollbar)) {
+    if (ImGui::BeginPopupContextWindow()) {
+      if (ImGui::Selectable("Clear")) {
+        log = "";
+        ImGui::EndPopup();
+      }
+      ImGui::EndChild();
+      ImGui::Separator();
+    }
+    ImGui::Text("%s", log.c_str());
+    static std::string oldLog = log;
+    if (oldLog != log && autoScroll) {
+      ImGui::SetScrollHereY(1.0f);
+      oldLog = log;
+    }
+    ImGui::EndChild();
+  }
+
+  ImGui::End();
+
+  ImGui::Begin("Asset Information");
+  static int assetNum = 0;
+  ImGui::Text("Select asset ID");
+  for (int i = 0; i < scene.assets.size(); i++) {
+    char index[4]; // Probably never will need more than 3 digits of precision
+    sprintf(index, "%d", i);
+    if (ImGui::RadioButton(index, assetNum == i)) {
+      assetNum = i;
+    }
+  }
+  ImGui::Separator();
+  Asset *currentAsset = scene.assets[assetNum];
+  ImGuizmo::SetOwnerWindowName("Viewport");
+  static ImGuizmo::OPERATION currentGizmoOperation(ImGuizmo::ROTATE);
+  static ImGuizmo::MODE currentGizmoMode(ImGuizmo::WORLD);
+  if (ImGui::RadioButton("Translate", currentGizmoOperation == ImGuizmo::TRANSLATE)) {
+    currentGizmoOperation = ImGuizmo::TRANSLATE;
+  }
+  ImGui::SameLine();
+  if (ImGui::RadioButton("Rotate", currentGizmoOperation == ImGuizmo::ROTATE)) {
+    currentGizmoOperation = ImGuizmo::ROTATE;
+  }
+  ImGui::SameLine();
+  if (ImGui::RadioButton("Scale", currentGizmoOperation == ImGuizmo::SCALE)) {
+    currentGizmoOperation = ImGuizmo::SCALE;
+  }
+  ImGui::DragFloat3("Translate", &currentAsset->position[0], 0.01);
+  ImGui::DragFloat4("Rotate", &currentAsset->rotation[0], 0.01);
+  ImGui::DragFloat3("Scale", &currentAsset->scaling[0], 0.01);
+
+  glm::mat4 rotationMatrix = mat4_cast(currentAsset->rotation);
+  glm::mat4 translationMatrix = glm::translate(glm::mat4(1), currentAsset->position);
+  glm::mat4 scalingMatrix = glm::scale(glm::mat4(1), currentAsset->scaling);
+  glm::mat4 modelMatrix = translationMatrix * rotationMatrix * scalingMatrix;
+
+  ImGuizmo::SetRect(viewportPosition.x, viewportPosition.y, viewportSize.x, viewportSize.y);
+  ImGuizmo::Manipulate((const float *)&viewMatrix, (const float *)&projectionMatrix, currentGizmoOperation, currentGizmoMode, (float *)&modelMatrix, NULL, NULL);
+  glm::vec3 shitAngles;
+  ImGuizmo::DecomposeMatrixToComponents((float *)&modelMatrix, &currentAsset->position[0], (float *)&shitAngles, &currentAsset->scaling[0]);
+  currentAsset->rotation = glm::quat(glm::radians(shitAngles));
+  ImGui::End();
 
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   glViewport(0, 0, WIDTH, HEIGHT);
 
   ImGui::Render();
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-  //ImGui::UpdatePlatformWindows();
-  //ImGui::RenderPlatformWindowsDefault();
-  //glfwMakeContextCurrent(window);
+  ImGui::UpdatePlatformWindows();
+  ImGui::RenderPlatformWindowsDefault();
+  glfwMakeContextCurrent(window);
 
   // Swap buffers
   glfwSwapBuffers(window);
@@ -618,11 +712,11 @@ int main() {
   scene.addAsset(cone);
   scene.addAsset(suzanne);
 
-  scene.setRenderCallback(&renderCallback);
+  scene.setRenderCallback(renderCallback);
 
   fred::setDeltaTimeMultiplier(20.0f);
 
-  while (fred::shouldExit()) {
+  while (!fred::shouldExit()) {
     fred::render(scene);
     cone.position.x += 0.01 * fred::getDeltaTime();
     glm::vec3 eulerAngles = glm::eulerAngles(suzanne.rotation);
